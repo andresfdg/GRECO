@@ -5,19 +5,30 @@ from ..database import Base
 class UserDb(Base):
 
     __tablename__ = "users"
-
+    #credential info
     id = Column(Integer, primary_key=True, nullable=False)
     name = Column(String, nullable=False)
     email = Column(String, nullable=False)
     password = Column(String, nullable=False)
-    
-
-    """ name = Column(String, nullable=False)
+    #adress and aditional info
     phone = Column(Integer, nullable=False)
-    password = Column(String, nullable = False)
     birthdate = Column(String, nullable=False)
     city = Column(String, nullable=False)
     adress = Column(String, nullable=False)
-    favoriteStore = Column(String, nullable=False)
+    favorite_store = Column(String)
+    favorite_item = Column(String)
+    type = Column(String,server_default='Person', nullable=False)
 
- """
+class StoreUserDb(Base):
+
+    __tablename__ = "store_users"
+    #credential info
+    id = Column(Integer, primary_key=True, nullable=False)
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    password = Column(String, nullable=False)
+    #adress and aditional info
+    phone = Column(Integer, nullable=False)
+    city = Column(String, nullable=False)
+    adress = Column(String, nullable=False)
+    type = Column(String ,server_default='Store', nullable=False)

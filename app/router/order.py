@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..database import *
-from ..models.post import *
+from ..models.ecommerceModels import *
 from ..schemas import *
 from ..oauth2 import *
 from typing import List
@@ -15,45 +15,44 @@ cur = conn.cursor()
 #routers
 router = APIRouter()
 
-# get all users
-@router.get("/post")                
-def getusers(db:Session = Depends(get_db),current_user: int = Depends(get_user)):
-
-    cur.execute("""  SELECT * FROM orders LEFT JOIN items ON orders.item = items.id  """)
-    orders = cur.fetchall()
-
-    #posts = db.query(OrderDb,ItemsDb).filter(OrderDb.item == ItemsDb.id).all()
-    #result = db.query(OrderDb).join(UserDb, OrderDb.owner_id == UserDb.id, isouter=True)
-    #print(result)
-    return orders
-
 #create a order an asigned to a gremio
-@router.post("/post/create")
-def hello(payload:OrderCreation,db:Session = Depends(get_db),current_user: int = Depends(get_user)):
+@router.post("/create_new_order")
+def create_new_order(payload:OrderCreation,db:Session = Depends(get_db),current_user: int = Depends(get_user)):
+
+    order_item = db.query(ItemDb).filter(ItemDb.id == payload.item).first()
+        
+    popularity = order_item.actual_popularity
+
+    dicount = 0
+
+    if popularity == 'low':
+        dicount = order_item.discount_low
+    if popularity == 'medium':
+        dicount = order_item.discount_medium
+    if popularity == 'high':
+        dicount = order_item.discount_high 
+
+    gremio_validado = db.query(GuildDb).filter(GuildDb.item == payload.item)
 
     
 
-    gre = db.query(NumericalGuiel).filter(NumericalGuiel.item == payload.item)
-
-    
     #this if is use to comprobate if a gremio exist for the order product
-    if not gre.first():
-        gremio = NumericalGuiel(item = payload.item)
-
+    if not gremio_validado.first():
+        gremio = GuildDb(item = payload.item)
         db.add(gremio)
         db.commit()
         db.refresh(gremio)
-        new_post = OrderDb(owner_id=current_user.id,gield_id=gremio.id  ,**payload.dict()) 
+      
+
+        new_post = OrderDb(store_id=order_item.owener_store, discount=dicount ,owner_id=current_user.id,gield_id=gremio.id  ,**payload.dict()) 
 
     #if the gremio exist increment the order_number     
     else:   #gre = gremio in database
-        x = gre.first()    
+        x = gremio_validado.first()    
         x.order_number = x.order_number + 1
-        new_post = OrderDb(owner_id=current_user.id,gield_id=x.id  ,**payload.dict()) 
+        #new_post = OrderDb(owner_id=current_user.id,gield_id=x.id  ,**payload.dict())
+        new_post = OrderDb(store_id=order_item.owener_store, discount=dicount ,owner_id=current_user.id,gield_id=x.id  ,**payload.dict())  
     #new order created
-    
-       
-    
         
     db.add(new_post)
     db.commit()
@@ -61,13 +60,18 @@ def hello(payload:OrderCreation,db:Session = Depends(get_db),current_user: int =
 
     return new_post
 
+# get all orders
+@router.get("/all_orders")                
+def get_all_orders(db:Session = Depends(get_db),current_user: int = Depends(get_user)):
+
+    orders = db.query(OrderDb).all()
+    return orders
 
 #get how many items were buy by all users
-@router.get("/totalquantity/{id}")
-def total(id:int, db:Session = Depends(get_db)):
+@router.get("/total_quantity_item/{id}")
+def total_quantity_item(id:int, db:Session = Depends(get_db)):
 
     cur.execute(f"  SELECT SUM(quantity) FROM orders WHERE item ={str(id)} ")
-
     count = cur.fetchone()
 
     return count
@@ -78,7 +82,6 @@ def total(id:int, db:Session = Depends(get_db)):
 def total(id:int, db:Session = Depends(get_db)):
 
     cur.execute(f"  SELECT COUNT(item) FROM orders WHERE item ={str(id)} ")
-
     count = cur.fetchone()
 
     return count
@@ -90,8 +93,6 @@ def prueba(id:int):
     cur.execute(f"""SELECT orders WHERE item = {str(id)} """)
 
     return "working"
-
-
     
 #RETURN ALL GIELD AND THEIR ORDERS
 @router.get("/join")
